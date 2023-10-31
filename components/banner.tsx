@@ -7,10 +7,10 @@ import tf2Image from "@/public/TF2.png";
 import SellItem from "@/public/SellItem.png";
 import dota2Leage from "@/public/dota2Leage.png";
 //tablet images imports
-import tf2ImageTablet from "@/public/tf2-tablet.png";
-import steamWalletImageTablet from "@/public/steamwallet-tablet.png";
-import steamWalletImageTablet2 from "@/public/steamwallet-tablet2.png";
-import rustImageTablet from "@/public/rust-tablet.png";
+// import tf2ImageTablet from "@/public/tf2-tablet.png";
+// import steamWalletImageTablet from "@/public/steamwallet-tablet.png";
+// import steamWalletImageTablet2 from "@/public/steamwallet-tablet2.png";
+// import rustImageTablet from "@/public/rust-tablet.png";
 //nextjs imports
 import Image from "next/image";
 import Link from "next/link";
@@ -18,34 +18,33 @@ import Link from "next/link";
 function Banner() {
   return (
     <>
-      <div
-        style={{ backgroundImage: `url(${bgImage.src})` }}
-        className="px-2 py-4 flex flex-col gap-5 items-center"
-      >
+      <div className="px-2 py-4 flex flex-col gap-5 items-center">
         <div className="flex gap-4 max-[640px]:hidden">
           <div>
-            <button className="bg-[#009688] p-1 rounded text-white font-IRANSansWeb">
+            <button className="bg-[#009688] p-1 rounded text-white font-IranYekanWebBold">
               آموزش کامل سایت
             </button>
           </div>
-          <div className="text-white flex flex-wrap gap-2 justify-end">
-            <button className="bg-[#363944] p-1 rounded">API</button>
+          <div className="text-white flex flex-wrap gap-2 justify-end font-IranYekanWebBold">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
+              API
+            </button>
             <button className="bg-[#363944] p-1 rounded">
               خرید استیم والت
             </button>
-            <button className="bg-[#363944] p-1 rounded font-IRANSansWeb">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
               لیگ دوتا2
             </button>
-            <button className="bg-[#363944] p-1 rounded font-IRANSansWeb">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
               استریمرها
             </button>
-            <button className="bg-[#363944] p-1 rounded font-IRANSansWeb">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
               خرید آیتم راست
             </button>
-            <button className="bg-[#363944] p-1 rounded font-IRANSansWeb">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
               خرید آیتم TF2
             </button>
-            <button className="bg-[#363944] p-1 rounded font-IRANSansWeb">
+            <button className="bg-[#363944] p-1 rounded font-IranYekanWebBold">
               خرید و فروش ارز دیجیتال
             </button>
           </div>
@@ -78,6 +77,18 @@ function Banner() {
               <Image src={dota2Leage} alt="logo" className="object-contain" />
             </Link>
           </div>
+        </div>
+        <div className="w-full flex justify-center items-center">
+          <hr className="w-full opacity-30" />
+          <button className="flex gap-3 bg-[#363944] p-1 rounded-md justify-center px-4">
+            <p className="text-green-500 font-IranYekanWebBold text-[14px] whitespace-nowrap">
+              نمایش همه
+            </p>
+            <p className="text-white font-IranYekanWebBold text-[14px] whitespace-nowrap">
+              آیتم Dota2
+            </p>
+          </button>
+          <hr className="w-full opacity-30" />
         </div>
       </div>
     </>
