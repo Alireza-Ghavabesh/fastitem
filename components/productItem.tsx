@@ -37,12 +37,12 @@ export const ProductItem: React.FC<ProductItemProps> = ({
           <div className="bg-[#77bc0a] text-white text-[15px] p-1 rounded-lg font-IranYekanWebBold">
             فوری
           </div>
-          <div className="flex gap-2 font-IranYekanWebBold text-white text-xs">
+          <div className="flex gap-1 font-IranYekanWebBold text-white text-xs">
             <p>تومان</p>
             <p className="">264,000</p>
           </div>
         </div>
-        <button className="bg-[#004fff] font-IranYekanWebBold rounded-lg p-1 text-white w-full">
+        <button className="bg-[#004fff] whitespace-nowrap font-IranYekanWebBold rounded-lg p-1 text-white w-full">
           افزودن به سبد خرید
         </button>
       </div>

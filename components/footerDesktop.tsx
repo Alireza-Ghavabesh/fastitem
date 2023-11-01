@@ -1,11 +1,40 @@
+import logo from "./../public/logo.png";
+import Image from "next/image";
+
 function FooterDesktop() {
   return (
-    <div className="max-[640px]:hidden fixed w-full mb-0">
-      <div className="flex gap-10">
-        <div>f1</div>
-        <div>f2</div>
-        <div>f3</div>
-        <div>f4</div>
+    <div className="flex items-center justify-between pl-2 max-[640px]:hidden fixed w-full bottom-0 z-10 bg-[#303741]">
+      <div>
+        <div className="text-white font-IranYekanWebBold border p-1">
+          اینماد
+        </div>
+      </div>
+      <div className="flex pr-2 py-1">
+        <div className="flex gap-4 flex-wrap text-white justify-center font-IranYekanWebBold items-center px-2 whitespace-nowrap text-[12px]">
+          <div>خرید استیم والت</div>
+          <div>|</div>
+          <div>خرید گیفت کارت</div>
+          <div>|</div>
+          <div>خرید گیفت کارت آمریکا</div>
+          <div>|</div>
+          <div>خرید ویباکس ارزان</div>
+          <div>|</div>
+          <div>گیفت کارت پلی استیشن</div>
+          <div>|</div>
+          <div>گیفت کارت اپل</div>
+          <div>|</div>
+          <div>استیم والت</div>
+          <div>|</div>
+          <div>پشتیبانی</div>
+          <div>|</div>
+        </div>
+        <Image
+          src={logo}
+          width={118}
+          height={38}
+          alt="logo"
+          className="object-contain"
+        />
       </div>
     </div>
   );

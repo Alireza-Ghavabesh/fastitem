@@ -43,7 +43,11 @@ export const Slider: React.FC<SliderProps> = ({
           }}
           loop={true}
           breakpoints={{
-            400: {
+            250: {
+              slidesPerView: 1,
+              spaceBetween: 10,
+            },
+            300: {
               slidesPerView: 2,
               spaceBetween: 10,
             },
