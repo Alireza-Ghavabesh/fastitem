@@ -8,53 +8,79 @@ import "swiper/css";
 import { Autoplay } from "swiper/modules";
 
 type SliderProps = {
+  showGameItemsText: string;
   productItems: ProductItemProps[];
 };
 
-export const Slider: React.FC<SliderProps> = ({ productItems }) => {
+export const Slider: React.FC<SliderProps> = ({
+  productItems,
+  showGameItemsText,
+}) => {
   return (
-    <div className="p-2">
-      <Swiper
-        modules={[Autoplay]}
-        spaceBetween={50}
-        slidesPerView={5}
-        onSlideChange={() => console.log("slide change")}
-        onSwiper={(swiper) => console.log(swiper)}
-        autoplay={{
-          delay: 2000,
-          disableOnInteraction: true,
-        }}
-        loop={true}
-        breakpoints={{
-          400: {
-            slidesPerView: 2,
-            spaceBetween: 70,
-          },
-          768: {
-            slidesPerView: 4,
-            spaceBetween: 40,
-          },
-          1024: {
-            slidesPerView: 5,
-            spaceBetween: 50,
-          },
-        }}
-      >
-        {productItems.length > 0 &&
-          productItems.map((productItem) => (
-            <SwiperSlide key={productItem.productId}>
-              <ProductItem
-                productId={productItem.productId}
-                heroName={productItem.heroName}
-                imageUrl={productItem.imageUrl}
-                itemName={productItem.itemName}
-                price={productItem.price}
-                timeToDeliver={productItem.timeToDeliver}
-                urlToMoreLikes={productItem.urlToMoreLikes}
-              />
-            </SwiperSlide>
-          ))}
-      </Swiper>
-    </div>
+    <>
+      <div className="w-full flex justify-center items-center">
+        <hr className="w-full opacity-30" />
+        <button className="flex gap-3 bg-[#363944] p-1 rounded-md justify-center px-4">
+          <p className="text-green-500 font-IranYekanWebBold text-[14px] whitespace-nowrap">
+            نمایش همه
+          </p>
+          <p className="text-white font-IranYekanWebBold text-[14px] whitespace-nowrap">
+            آیتم {showGameItemsText}
+          </p>
+        </button>
+        <hr className="w-full opacity-30" />
+      </div>
+      <div className="p-2">
+        <Swiper
+          modules={[Autoplay]}
+          spaceBetween={50}
+          slidesPerView={5}
+          onSlideChange={() => console.log("slide change")}
+          onSwiper={(swiper) => console.log(swiper)}
+          autoplay={{
+            delay: 2000,
+            disableOnInteraction: true,
+          }}
+          loop={true}
+          breakpoints={{
+            400: {
+              slidesPerView: 2,
+              spaceBetween: 10,
+            },
+            640: {
+              slidesPerView: 3,
+              spaceBetween: 10,
+            },
+            768: {
+              slidesPerView: 4,
+              spaceBetween: 10,
+            },
+            1024: {
+              slidesPerView: 5,
+              spaceBetween: 10,
+            },
+            1280: {
+              slidesPerView: 6,
+              spaceBetween: 10,
+            },
+          }}
+        >
+          {productItems.length > 0 &&
+            productItems.map((productItem) => (
+              <SwiperSlide key={productItem.productId}>
+                <ProductItem
+                  productId={productItem.productId}
+                  heroName={productItem.heroName}
+                  imageUrl={productItem.imageUrl}
+                  itemName={productItem.itemName}
+                  price={productItem.price}
+                  timeToDeliver={productItem.timeToDeliver}
+                  urlToMoreLikes={productItem.urlToMoreLikes}
+                />
+              </SwiperSlide>
+            ))}
+        </Swiper>
+      </div>
+    </>
   );
 };

@@ -76,10 +76,20 @@ const hardCodedProductItems: ProductItemProps[] = [
 export default function Home() {
   return (
     <>
-      <div style={{ backgroundImage: `url(${bgImage.src})` }}>
-        <Header />
+      <div className="mb-8">
         <Banner />
-        <Slider productItems={hardCodedProductItems} />
+        <Slider
+          productItems={hardCodedProductItems}
+          showGameItemsText="Dota2"
+        />
+        <Slider
+          productItems={hardCodedProductItems}
+          showGameItemsText="Dota2"
+        />
+        <Slider
+          productItems={hardCodedProductItems}
+          showGameItemsText="Dota2"
+        />
       </div>
     </>
   );

@@ -19,9 +19,9 @@ function Banner() {
   return (
     <>
       <div className="px-2 py-4 flex flex-col gap-5 items-center">
-        <div className="flex gap-4 max-[640px]:hidden">
+        <div className="flex justify-between gap-4 max-[640px]:hidden w-full px-5 whitespace-nowrap">
           <div>
-            <button className="bg-[#009688] p-1 rounded text-white font-IranYekanWebBold">
+            <button className="bg-[#009688] p-1 rounded text-white font-IranYekanWebBold ">
               آموزش کامل سایت
             </button>
           </div>
@@ -77,18 +77,6 @@ function Banner() {
               <Image src={dota2Leage} alt="logo" className="object-contain" />
             </Link>
           </div>
-        </div>
-        <div className="w-full flex justify-center items-center">
-          <hr className="w-full opacity-30" />
-          <button className="flex gap-3 bg-[#363944] p-1 rounded-md justify-center px-4">
-            <p className="text-green-500 font-IranYekanWebBold text-[14px] whitespace-nowrap">
-              نمایش همه
-            </p>
-            <p className="text-white font-IranYekanWebBold text-[14px] whitespace-nowrap">
-              آیتم Dota2
-            </p>
-          </button>
-          <hr className="w-full opacity-30" />
         </div>
       </div>
     </>

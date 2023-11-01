@@ -28,7 +28,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({
         height={162}
         className="rounded-t-lg w-full"
       />
-      <div className="bg-[#4d5d74] w-full rounded-b-lg p-2 flex flex-col items-center gap-2">
+      <div className="bg-[#4d5d74] w-full p-2 flex flex-col items-center gap-2">
         <div className="text-[14px] text-[#2c3747] w-full flex justify-start">
           {heroName}
         </div>
@@ -37,7 +37,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({
           <div className="bg-[#77bc0a] text-white text-[15px] p-1 rounded-lg font-IranYekanWebBold">
             فوری
           </div>
-          <div className="flex gap-2 font-IranYekanWebBold text-white text-[15px]">
+          <div className="flex gap-2 font-IranYekanWebBold text-white text-xs">
             <p>تومان</p>
             <p className="">264,000</p>
           </div>
