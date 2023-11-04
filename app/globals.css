@@ -11,3 +11,7 @@
   font-family: "IranYekanWebBold";
   src: url("../public/fonts/IranYekanWeb-Bold.woff2");
 }
+
+* {
+  box-sizing: border-box;
+}

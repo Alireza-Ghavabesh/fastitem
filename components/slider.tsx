@@ -13,8 +13,8 @@ type SliderProps = {
 };
 
 export const Slider: React.FC<SliderProps> = ({
-  productItems,
   showGameItemsText,
+  productItems,
 }) => {
   return (
     <>
@@ -45,10 +45,6 @@ export const Slider: React.FC<SliderProps> = ({
           breakpoints={{
             250: {
               slidesPerView: 1,
-              spaceBetween: 10,
-            },
-            300: {
-              slidesPerView: 2,
               spaceBetween: 10,
             },
             640: {

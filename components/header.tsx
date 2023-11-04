@@ -6,30 +6,33 @@ import box from "./../public/box.png";
 import profileIcon from "./../public/profile.png";
 import profileSteam from "./../public/steamImage.jpg";
 import foriImage from "./../public/fori.png";
+import Link from "next/link";
 
 function Header() {
   return (
     <header className="bg-[#303741] flex justify-between py-3 px-2 items-center">
       <div className="flex gap-10">
-        <Image
-          src={logo}
-          width={118}
-          height={38}
-          alt="logo"
-          className="object-contain"
-        />
+        <Link href={"/"}>
+          <Image
+            src={logo}
+            width={118}
+            height={38}
+            alt="logo"
+            className="object-contain"
+          />
+        </Link>
         <div className="flex gap-7">
           <div
             className="text-white
-        cursor-pointer
-        max-[767px]:hidden
-        flex gap-3
-        bg-[#444c57]
-        p-2
-        h-[40px]
-        rounded-[2px]
-        px-7
-        "
+              cursor-pointer
+              max-[767px]:hidden
+              flex gap-3
+              bg-[#444c57]
+              p-2
+              h-[40px]
+              rounded-[2px]
+              px-7
+              "
           >
             <Image
               src={box}

@@ -1,11 +1,9 @@
 import Banner from "@/components/banner";
-import Header from "@/components/header";
 import { Slider } from "@/components/slider";
 import Autographed from "@/public/Dota2Products/Autographed.png";
 import Harborblossom from "@/public/Dota2Products/Harborblossom.png";
 import InscribedElixir from "@/public/Dota2Products/InscribedElixir.png";
 import { ProductItemProps } from "../components/productItem";
-import bgImage from "@/public/banner-background.jpg";
 
 const hardCodedProductItems: ProductItemProps[] = [
   {
@@ -75,22 +73,11 @@ const hardCodedProductItems: ProductItemProps[] = [
 
 export default function Home() {
   return (
-    <>
-      <div className="mb-8">
-        <Banner />
-        <Slider
-          productItems={hardCodedProductItems}
-          showGameItemsText="Dota2"
-        />
-        <Slider
-          productItems={hardCodedProductItems}
-          showGameItemsText="Dota2"
-        />
-        <Slider
-          productItems={hardCodedProductItems}
-          showGameItemsText="Dota2"
-        />
-      </div>
-    </>
+    <div className="mb-[50px]">
+      <Banner />
+      <Slider productItems={hardCodedProductItems} showGameItemsText="Dota2" />
+      <Slider productItems={hardCodedProductItems} showGameItemsText="Dota2" />
+      <Slider productItems={hardCodedProductItems} showGameItemsText="Dota2" />
+    </div>
   );
 }
