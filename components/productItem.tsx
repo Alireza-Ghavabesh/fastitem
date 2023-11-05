@@ -1,15 +1,18 @@
-import Image from "next/image";
+import Image, { ImageProps } from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faShoppingCart } from "@fortawesome/free-solid-svg-icons";
+import { config } from "@fortawesome/fontawesome-svg-core";
+import "@fortawesome/fontawesome-svg-core/styles.css";
+config.autoAddCss = false;
 
 export type ProductItemProps = {
   productId: string;
-  heroName: string;
-  urlToMoreLikes: string;
+  heroName?: string;
+  urlToMoreLikes?: string;
   imageUrl: string;
-  itemName: string;
-  price: string;
-  timeToDeliver: string;
+  itemName?: string;
+  price?: string;
+  timeToDeliver?: string;
 };
 
 export const ProductItem: React.FC<ProductItemProps> = ({

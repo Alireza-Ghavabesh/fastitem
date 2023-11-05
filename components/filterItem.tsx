@@ -1,6 +1,4 @@
 import Image from "next/image";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {} from "@fortawesome/free-solid-svg-icons";
 import { heroNameIconsList } from "@/components/heronames";
 
 export type FilterItemProps = {
@@ -33,7 +31,7 @@ export const FilterItem: React.FC<FilterItemProps> = ({
       <input
         type="text"
         placeholder={searchTermItemPlaceholder}
-        className="placeholder:font-IranYekanWebBold h-11 placeholder:text-center outline-none bg-[#2E3039] text-white"
+        className="placeholder:font-IranYekanWebBold h-11 text-center placeholder:text-center outline-none bg-[#2E3039] text-white"
       />
       <div className="bg-[#77BC0A] rounded-lg h-11 flex justify-center cursor-pointer items-center text-white font-IranYekanWebBold">
         {BestSellerText}
@@ -47,7 +45,7 @@ export const FilterItem: React.FC<FilterItemProps> = ({
       <input
         type="text"
         placeholder={searchTermHeroNamePlaceholder}
-        className="placeholder:font-IranYekanWebBold h-11 placeholder:text-center outline-none bg-[#2E3039] text-white"
+        className="placeholder:font-IranYekanWebBold h-11 text-center placeholder:text-center outline-none bg-[#2E3039] text-white"
       />
       <div className="flex justify-center flex-wrap gap-3">
         {heroNameIconsList.length > 0 &&

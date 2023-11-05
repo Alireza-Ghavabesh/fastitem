@@ -11,7 +11,7 @@ import Link from "next/link";
 function Header() {
   return (
     <header className="bg-[#303741] flex justify-between py-3 px-2 items-center">
-      <div className="flex gap-10">
+      <div className="flex gap-10 h-full items-center">
         <Link href={"/"}>
           <Image
             src={logo}
@@ -28,10 +28,9 @@ function Header() {
               max-[767px]:hidden
               flex gap-3
               bg-[#444c57]
-              p-2
-              h-[40px]
+              h-[60px]
+              px-8
               rounded-[2px]
-              px-7
               "
           >
             <Image
@@ -44,14 +43,14 @@ function Header() {
           </div>
           <div
             className="text-white
-        cursor-pointer
-        max-[767px]:hidden
-        flex gap-3
-        bg-[#444c57]
-        p-2
-        h-[40px]
-        rounded-[2px] 
-        "
+            cursor-pointer
+            max-[767px]:hidden
+            flex gap-3
+            bg-[#444c57]
+            h-[60px]
+            px-5
+            rounded-[2px] 
+            "
           >
             <Image
               src={cart}
@@ -60,30 +59,30 @@ function Header() {
               alt="logo"
               className="object-contain"
             />
-            0
+            <div className="flex h-full items-center">0</div>
           </div>
           <div
             className="
        tablet:text-white 
        max-[767px]:hidden 
        tablet:flex tablet:items-center 
-       tablet:w-[200px]
-       tablet:h-[40px]
+       tablet:w-[250px]
+       tablet:h-[60px]
        tablet:bg-[#202126]
-    
+        
        "
           >
             <div className="bg-[#202126] w-[75%] flex items-center justify-center h-full font-IRANSansWeb text-[14px]">
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center text-xl">
                 <div className="mt-1">0</div>
                 <div>تومان</div>
               </div>
             </div>
-            <div className="w-[25%] h-full flex flex-col items-center justify-center p-1">
-              <div className="border border-[#202126] rounded-[5px] p-2 bg-[#444c57] w-full h-1/3 flex justify-center items-center text-xl cursor-pointer">
+            <div className="w-[25%] h-full flex flex-col gap-1 items-center justify-center p-1">
+              <div className="border border-[#202126] rounded-[5px] p-2 bg-[#444c57] w-full h-1/2 flex justify-center items-center text-3xl cursor-pointer">
                 +
               </div>
-              <div className="border border-[#202126] rounded-[5px] p-2 bg-[#2a2f36] w-full h-1/3 flex justify-center items-center text-xl cursor-pointer">
+              <div className="border border-[#202126] rounded-[5px] p-2 bg-[#2a2f36] w-full h-1/2 flex justify-center items-center text-3xl cursor-pointer">
                 -
               </div>
             </div>
