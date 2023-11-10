@@ -5,6 +5,8 @@ import Autographed from "@/public/Dota2Products/Autographed.png";
 import Harborblossom from "@/public/Dota2Products/Harborblossom.png";
 import InscribedElixir from "@/public/Dota2Products/InscribedElixir.png";
 import { AdBanner } from "@/components/adBanner";
+import { Suspense } from "react";
+import Loading from "./loading";
 
 const hardCodedProductItems: ProductItemProps[] = [
   {
@@ -133,6 +135,60 @@ const hardCodedProductItems: ProductItemProps[] = [
     price: "string",
     timeToDeliver: "string",
   },
+  {
+    productId: "15",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: Harborblossom.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
+  {
+    productId: "16",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: InscribedElixir.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
+  {
+    productId: "17",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: InscribedElixir.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
+  {
+    productId: "18",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: InscribedElixir.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
+  {
+    productId: "19",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: InscribedElixir.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
+  {
+    productId: "20",
+    heroName: "string",
+    urlToMoreLikes: "string",
+    imageUrl: InscribedElixir.src,
+    itemName: "string",
+    price: "string",
+    timeToDeliver: "string",
+  },
 ];
 
 function Dota2Page() {
@@ -147,20 +203,22 @@ function Dota2Page() {
             <AdBanner />
             <div>آیتم دوتا2 (46 آیتم)</div>
           </div>
-          <div className="flex justify-center flex-wrap gap-2">
-            {hardCodedProductItems.length > 0 &&
-              hardCodedProductItems.map((productItem) => (
-                <ProductItem
-                  key={productItem.productId}
-                  productId={productItem.productId}
-                  heroName={productItem.heroName}
-                  imageUrl={productItem.imageUrl}
-                  itemName={productItem.itemName}
-                  price={productItem.price}
-                  timeToDeliver={productItem.timeToDeliver}
-                  urlToMoreLikes={productItem.urlToMoreLikes}
-                />
-              ))}
+          <div className="flex justify-around flex-wrap gap-2">
+            <Suspense fallback={<Loading />}>
+              {hardCodedProductItems.length > 0 &&
+                hardCodedProductItems.map((productItem) => (
+                  <ProductItem
+                    key={productItem.productId}
+                    productId={productItem.productId}
+                    heroName={productItem.heroName}
+                    imageUrl={productItem.imageUrl}
+                    itemName={productItem.itemName}
+                    price={productItem.price}
+                    timeToDeliver={productItem.timeToDeliver}
+                    urlToMoreLikes={productItem.urlToMoreLikes}
+                  />
+                ))}
+            </Suspense>
           </div>
         </div>
         <div className="w-[25%] max-laptop:hidden">

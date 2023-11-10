@@ -1,5 +1,7 @@
 import Image from "next/image";
 import { heroNameIconsList } from "@/components/heronames";
+import { Suspense } from "react";
+import Loading from "./loadingHeros";
 
 export type FilterItemProps = {
   searchTermItemPlaceholder?: string;
@@ -48,18 +50,20 @@ export const FilterItem: React.FC<FilterItemProps> = ({
         className="placeholder:font-IranYekanWebBold h-11 text-center placeholder:text-center outline-none bg-[#2E3039] text-white"
       />
       <div className="flex justify-center flex-wrap gap-3">
-        {heroNameIconsList.length > 0 &&
-          heroNameIconsList.map((hero, index) => (
-            <button key={index}>
-              <Image
-                src={hero.image}
-                alt="logo"
-                width={63}
-                height={39}
-                className="rounded-t-lg w-full"
-              />
-            </button>
-          ))}
+        <Suspense fallback={<Loading />}>
+          {heroNameIconsList.length > 0 &&
+            heroNameIconsList.map((hero, index) => (
+              <button key={index}>
+                <Image
+                  src={hero.image}
+                  alt="logo"
+                  width={63}
+                  height={39}
+                  className="rounded-t-lg w-full"
+                />
+              </button>
+            ))}
+        </Suspense>
       </div>
     </div>
   );
