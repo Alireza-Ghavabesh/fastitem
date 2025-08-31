@@ -235,7 +235,7 @@ git pull
 
 # Check if app is running
 print_status "Checking if app is running..."
-SERVER_IP="188.121.100.180"
+SERVER_IP="188.121.117.251"
 if ! curl -f http://$SERVER_IP:3000 > /dev/null 2>&1; then
     print_error "App is not accessible on $SERVER_IP:3000!"
     print_error "Please ensure your app is running and accessible before setting up SSL"
