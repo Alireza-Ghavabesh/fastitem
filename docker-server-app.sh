@@ -80,8 +80,8 @@ docker image prune -a --filter "until=24h" -f
 
 # Build and start application
 print_status "Building and starting application..."
-DOCKER_BUILDKIT=1 docker compose -f "$COMPOSE_FILE" build app
-docker compose -f "$COMPOSE_FILE" up -d app
+DOCKER_BUILDKIT=1 docker-compose -f "$COMPOSE_FILE" build app
+docker-compose -f "$COMPOSE_FILE" up -d app
 
 
 # Wait for the application to be ready with health check
