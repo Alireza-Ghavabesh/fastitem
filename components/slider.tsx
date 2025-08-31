@@ -16,6 +16,11 @@ export const Slider: React.FC<SliderProps> = ({
   showGameItemsText,
   productItems,
 }) => {
+
+
+  console.log(productItems[0].heroName)
+  console.log(productItems[0].itemName)
+
   return (
     <>
       <div className="w-full flex justify-center items-center">
@@ -73,7 +78,9 @@ export const Slider: React.FC<SliderProps> = ({
                   heroName={productItem.heroName}
                   imageUrl={productItem.imageUrl}
                   itemName={productItem.itemName}
-                  price={productItem.price}
+                  originalPrice={productItem.originalPrice}
+                  discountPrice={productItem.discountPrice}
+                  isFory={productItem.isFory}
                   timeToDeliver={productItem.timeToDeliver}
                   urlToMoreLikes={productItem.urlToMoreLikes}
                 />

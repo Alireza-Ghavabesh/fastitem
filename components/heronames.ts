@@ -80,7 +80,7 @@ import Tusk from "@/public/heroIcons/Tusk.png";
 import Sven from "@/public/heroIcons/Sven.png";
 import Phoenix from "@/public/heroIcons/Phoenix.png";
 import TreantProtector from "@/public/heroIcons/Treant Protector.png";
-import facelessVoid from "@/public/heroIcons/faceless Void.png";
+import FacelessVoid from "@/public/heroIcons/Faceless Void.png";
 import NightStalker from "@/public/heroIcons/Night Stalker.png";
 import WinterWyvern from "@/public/heroIcons/Winter Wyvern.png";
 import Earthshaker from "@/public/heroIcons/Earthshaker.png";
@@ -492,7 +492,7 @@ export const heroNameIconsList = [
   },
   {
     heroName: "Faceless Void",
-    image: facelessVoid,
+    image: FacelessVoid,
   },
   {
     heroName: "Night Stalker",
