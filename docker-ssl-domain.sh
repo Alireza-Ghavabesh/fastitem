@@ -326,7 +326,7 @@ if [ "$SSL" = "true" ]; then
         print_warning "No --domain provided. Generating self-signed certificate. Browsers will show a warning."
 
         # Write HTTPS config referencing self-signed cert path
-        cat > ./nginx.conf << 'EOF'
+        cat > ./nginx.conf << EOF
 server {
     listen 80;
     server_name _;
