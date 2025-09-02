@@ -7,7 +7,7 @@ set -euo pipefail
 # Run this AFTER your app is successfully running on ip:5000
 
 # Default Values
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILE="docker-compose.yml"
 
 # Set DOMAIN and EMAIL_ADDRESS via env or flags; DOMAIN must be a FQDN (Let's Encrypt does not issue IP certs)
 DOMAIN=""
@@ -89,24 +89,6 @@ ensure_compose() {
 ensure_nginx_up() {
     print_status "Ensuring nginx service is up..."
     docker compose -f "$COMPOSE_FILE" up -d nginx
-}
-
-nginx_exec() {
-    docker compose -f "$COMPOSE_FILE" exec -T nginx sh -c "$1"
-}
-
-write_nginx_config_inside() {
-    # $1 = config content
-    local content="$1"
-    printf "%s" "$content" | docker compose -f "$COMPOSE_FILE" exec -T nginx sh -c 'cat > /etc/nginx/conf.d/default.conf'
-}
-
-reload_nginx() {
-    nginx_exec "nginx -t" || {
-        print_error "nginx configuration test failed"
-        exit 1
-    }
-    nginx_exec "nginx -s reload || kill -HUP $(cat /var/run/nginx.pid) || true"
 }
 
 # Function to handle rate limiting
@@ -260,23 +242,20 @@ generate_ssl_certificate() {
     local email="$1"
     local staging="$2"
 
-    print_status "Generating SSL certificate using certbot..."
+    print_status "Generating SSL certificate using certbot service..."
 
-    local certbot_cmd="certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos --email ${email} --domains ${DOMAIN} --rsa-key-size 4096 --preferred-challenges http"
-
+    local extra=""
     if [ "${staging}" = "true" ]; then
-        certbot_cmd="${certbot_cmd} --staging"
+        extra="--staging"
         print_warning "Using staging environment (test certificates)"
     fi
 
-    nginx_exec "apk add --no-cache certbot openssl >/dev/null 2>&1 || true"
-    nginx_exec "mkdir -p /var/www/certbot"
-
-    # Run certbot
-    if ! nginx_exec "${certbot_cmd}"; then
-        print_error "Certificate generation failed."
-        exit 1
-    fi
+    docker compose -f "$COMPOSE_FILE" run --rm \
+        certbot certbot certonly --webroot -w /var/www/certbot --non-interactive --agree-tos \
+        --email "$email" -d "$DOMAIN" --rsa-key-size 4096 $extra || {
+            print_error "Certificate generation failed."
+            exit 1
+        }
 }
 
 # Main script execution
@@ -337,24 +316,24 @@ fi
 if [ "$SSL" = "true" ]; then
     print_status "Setting up SSL for $DOMAIN"
 
+    # Apply temporary HTTP-only config to host-mounted file
+    print_status "Writing temporary HTTP config to ./nginx.conf for ACME..."
+    render_nginx_config temp > ./nginx.conf
+
+    # Start or ensure nginx is up with the temp config
     ensure_nginx_up
 
-    # Apply temporary HTTP-only config
-    print_status "Applying temporary HTTP config for ACME..."
-    temp_cfg="$(render_nginx_config temp)"
-    write_nginx_config_inside "$temp_cfg"
-    reload_nginx
-
-    # Issue certificate
+    # Issue certificate via certbot container (shares volumes with nginx)
     generate_ssl_certificate "$EMAIL_ADDRESS" "$STAGING_MODE"
 
-    # Apply full HTTPS config
-    print_status "Applying full HTTPS nginx config..."
-    full_cfg="$(render_nginx_config full)"
-    write_nginx_config_inside "$full_cfg"
-    reload_nginx
+    # Apply full HTTPS config to host-mounted file
+    print_status "Writing full HTTPS config to ./nginx.conf..."
+    render_nginx_config full > ./nginx.conf
 
-    print_status "SSL setup completed!"
+    # Restart nginx once to pick up the new config and initial certs
+    docker compose -f "$COMPOSE_FILE" restart nginx
+
+    print_status "SSL setup completed! Renewals will be handled by the running certbot service."
 else
     print_warning "SSL setup skipped."
     exit 0
