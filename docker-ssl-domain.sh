@@ -47,8 +47,8 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  --domain DOMAIN           Fully-qualified domain name pointing to this server (required)
-  --email EMAIL             Email for Let's Encrypt registration/expiry notices (required)
+  --domain DOMAIN           Fully-qualified domain for Let's Encrypt (optional)
+  --email EMAIL             Email for Let's Encrypt registration/expiry notices (required if --domain)
   --compose-file PATH       docker compose file (default: ${COMPOSE_FILE})
   --port PORT               Upstream app port inside docker network (default: ${PORT})
   --staging                 Use Let's Encrypt staging (test) environment
@@ -58,6 +58,7 @@ Environment overrides:
   DOMAIN, EMAIL_ADDRESS, COMPOSE_FILE, PORT, STAGING_MODE, SSL
 
 Notes:
+  - Without --domain, the script generates a self-signed certificate (browser warning expected).
   - Let's Encrypt will not issue certificates for IP addresses. DOMAIN must be a FQDN with a valid A/AAAA record.
   - This script expects a service named 'nginx' and an upstream named 'app' inside docker compose.
 EOF
@@ -89,6 +90,11 @@ ensure_compose() {
 ensure_nginx_up() {
     print_status "Ensuring nginx service is up..."
     docker compose -f "$COMPOSE_FILE" up -d nginx
+}
+
+# Exec helper for nginx container
+nginx_exec() {
+    docker compose -f "$COMPOSE_FILE" exec -T nginx sh -c "$1"
 }
 
 # Function to handle rate limiting
@@ -164,7 +170,7 @@ render_nginx_config() {
 # Temporary HTTP-only configuration for certificate generation
 server {
     listen 80;
-    server_name ${DOMAIN};
+    server_name ${DOMAIN:-_};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -190,7 +196,7 @@ EOF
 # HTTP server - redirect to HTTPS and serve ACME
 server {
     listen 80;
-    server_name ${DOMAIN};
+    server_name ${DOMAIN:-_};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -203,10 +209,14 @@ server {
 
 server {
     listen 443 ssl;
-    server_name ${DOMAIN};
+    server_name ${DOMAIN:-_};
 
-    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    # If DOMAIN is not set (self-signed mode), use self-signed paths
+    # Otherwise, use Let's Encrypt paths
+    ssl_certificate ${DOMAIN:+/etc/letsencrypt/live/${DOMAIN}/fullchain.pem};
+    ssl_certificate_key ${DOMAIN:+/etc/letsencrypt/live/${DOMAIN}/privkey.pem};
+    ssl_certificate ${DOMAIN:+'/etc/letsencrypt/live/'${DOMAIN}'/fullchain.pem'};
+    ssl_certificate_key ${DOMAIN:+'/etc/letsencrypt/live/'${DOMAIN}'/privkey.pem'};
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
@@ -288,19 +298,16 @@ done
 ensure_compose
 
 if [ "$SSL" = "true" ]; then
-    if [ -z "$DOMAIN" ]; then
-        print_error "--domain is required (Let's Encrypt cannot issue IP certificates)"
-        usage
-        exit 1
-    fi
-    if domain_is_ip "$DOMAIN"; then
-        print_error "DOMAIN appears to be an IP. Use a real domain with DNS A/AAAA to this server."
-        exit 1
-    fi
-    if [ -z "$EMAIL_ADDRESS" ]; then
-        print_error "--email is required"
-        usage
-        exit 1
+    if [ -n "$DOMAIN" ]; then
+        if domain_is_ip "$DOMAIN"; then
+            print_error "DOMAIN appears to be an IP. Use a real domain with DNS A/AAAA to this server."
+            exit 1
+        fi
+        if [ -z "$EMAIL_ADDRESS" ]; then
+            print_error "--email is required when --domain is provided"
+            usage
+            exit 1
+        fi
     fi
 fi
 
@@ -314,26 +321,79 @@ fi
 
 # SSL setup
 if [ "$SSL" = "true" ]; then
-    print_status "Setting up SSL for $DOMAIN"
+    if [ -z "$DOMAIN" ]; then
+        # Self-signed mode
+        print_warning "No --domain provided. Generating self-signed certificate. Browsers will show a warning."
 
-    # Apply temporary HTTP-only config to host-mounted file
-    print_status "Writing temporary HTTP config to ./nginx.conf for ACME..."
-    render_nginx_config temp > ./nginx.conf
+        # Write HTTPS config referencing self-signed cert path
+        cat > ./nginx.conf << 'EOF'
+server {
+    listen 80;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
 
-    # Start or ensure nginx is up with the temp config
-    ensure_nginx_up
+server {
+    listen 443 ssl;
+    server_name _;
 
-    # Issue certificate via certbot container (shares volumes with nginx)
-    generate_ssl_certificate "$EMAIL_ADDRESS" "$STAGING_MODE"
+    ssl_certificate /etc/letsencrypt/selfsigned/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/selfsigned/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
-    # Apply full HTTPS config to host-mounted file
-    print_status "Writing full HTTPS config to ./nginx.conf..."
-    render_nginx_config full > ./nginx.conf
+    location / {
+        proxy_pass http://app:${PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400;
+    }
+}
+EOF
 
-    # Restart nginx once to pick up the new config and initial certs
-    docker compose -f "$COMPOSE_FILE" restart nginx
+        ensure_nginx_up
 
-    print_status "SSL setup completed! Renewals will be handled by the running certbot service."
+        # Generate self-signed cert inside nginx container
+        nginx_exec "mkdir -p /etc/letsencrypt/selfsigned && \
+                    openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
+                    -keyout /etc/letsencrypt/selfsigned/privkey.pem \
+                    -out /etc/letsencrypt/selfsigned/fullchain.pem \
+                    -subj '/CN=selfsigned' >/dev/null 2>&1 || true"
+
+        docker compose -f "$COMPOSE_FILE" restart nginx
+        print_status "Self-signed HTTPS enabled. Use --domain later for Let's Encrypt."
+    else
+        print_status "Setting up SSL for $DOMAIN"
+
+        # Apply temporary HTTP-only config to host-mounted file
+        print_status "Writing temporary HTTP config to ./nginx.conf for ACME..."
+        render_nginx_config temp > ./nginx.conf
+
+        # Start or ensure nginx is up with the temp config
+        ensure_nginx_up
+
+        # Issue certificate via certbot container (shares volumes with nginx)
+        generate_ssl_certificate "$EMAIL_ADDRESS" "$STAGING_MODE"
+
+        # Apply full HTTPS config to host-mounted file
+        print_status "Writing full HTTPS config to ./nginx.conf..."
+        render_nginx_config full > ./nginx.conf
+
+        # Restart nginx once to pick up the new config and initial certs
+        docker compose -f "$COMPOSE_FILE" restart nginx
+
+        print_status "Let's Encrypt SSL enabled! Renewals handled by certbot service."
+    fi
 else
     print_warning "SSL setup skipped."
     exit 0
