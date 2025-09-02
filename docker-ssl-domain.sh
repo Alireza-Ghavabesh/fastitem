@@ -363,12 +363,22 @@ EOF
 
         ensure_nginx_up
 
-        # Generate self-signed cert inside nginx container
+        # Ensure openssl is available and generate self-signed cert inside nginx container
+        nginx_exec "apk add --no-cache openssl >/dev/null 2>&1 || true"
         nginx_exec "mkdir -p /etc/letsencrypt/selfsigned && \
                     openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
                     -keyout /etc/letsencrypt/selfsigned/privkey.pem \
                     -out /etc/letsencrypt/selfsigned/fullchain.pem \
-                    -subj '/CN=selfsigned' >/dev/null 2>&1 || true"
+                    -subj '/CN=selfsigned' >/dev/null 2>&1" || {
+            print_error "Failed to generate self-signed certificate inside nginx container."
+            exit 1
+        }
+
+        # Validate nginx config before restart
+        if ! docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -t; then
+            print_error "nginx configuration test failed."
+            exit 1
+        fi
 
         docker compose -f "$COMPOSE_FILE" restart nginx
         print_status "Self-signed HTTPS enabled. Use --domain later for Let's Encrypt."
