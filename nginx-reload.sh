@@ -5,9 +5,14 @@ while [ ! -f /var/run/nginx.pid ]; do
   sleep 2
 done
 
-# Reload loop
+# Reload loop (only reload if config is valid)
 while true; do
-  echo "[nginx-reload] Reloading Nginx to pick up renewed certificates..."
-  nginx -s reload
+  echo "[nginx-reload] Checking config before reload..."
+  if nginx -t; then
+    echo "[nginx-reload] Reloading Nginx to pick up renewed certificates..."
+    nginx -s reload
+  else
+    echo "[nginx-reload] Skipping reload: nginx -t failed. Will retry later."
+  fi
   sleep 12h
 done
