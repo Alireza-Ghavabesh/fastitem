@@ -1,15 +1,22 @@
 #!/bin/bash
 
-# SSL and Domain Setup Script
-# This script sets up nginx with SSL certificates for your domain
-# Run this AFTER your app is successfully running on ip:3000
+set -euo pipefail
 
-# Exit immediately if a command exits with a non-zero status
-set -e
+# SSL Setup Script for IP Address or Domain
+# This script sets up SSL certificates for the IP address or domain
+# Run this AFTER your app is successfully running on ip:5000
 
-# Configuration
-COMPOSE_FILE="docker-compose.yml"
+# Default Values
+COMPOSE_FILE="docker-compose.prod.yml"
 
+# Set DOMAIN and EMAIL_ADDRESS via env or flags; DOMAIN must be a FQDN (Let's Encrypt does not issue IP certs)
+DOMAIN=""
+EMAIL_ADDRESS=""
+STAGING_MODE="false"
+
+SSL=true  # Set to 'true' to enable SSL, 'false' to skip SSL setup
+SERVER_IP="188.121.117.251"  # Your server IP address (used for health check only)
+PORT="3000"  # Port your app is running on
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -17,6 +24,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
 
 print_status() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -32,6 +40,73 @@ print_warning() {
 
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+usage() {
+    cat << EOF
+Usage: $0 [options]
+
+Options:
+  --domain DOMAIN           Fully-qualified domain name pointing to this server (required)
+  --email EMAIL             Email for Let's Encrypt registration/expiry notices (required)
+  --compose-file PATH       docker compose file (default: ${COMPOSE_FILE})
+  --port PORT               Upstream app port inside docker network (default: ${PORT})
+  --staging                 Use Let's Encrypt staging (test) environment
+  --no-ssl                  Skip SSL setup
+
+Environment overrides:
+  DOMAIN, EMAIL_ADDRESS, COMPOSE_FILE, PORT, STAGING_MODE, SSL
+
+Notes:
+  - Let's Encrypt will not issue certificates for IP addresses. DOMAIN must be a FQDN with a valid A/AAAA record.
+  - This script expects a service named 'nginx' and an upstream named 'app' inside docker compose.
+EOF
+}
+
+domain_is_ip() {
+    local d="$1"
+    if [[ "$d" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+ensure_compose() {
+    if ! command -v docker >/dev/null 2>&1; then
+        print_error "docker is not installed or not in PATH"
+        exit 1
+    fi
+    if ! docker compose version >/dev/null 2>&1; then
+        print_error "docker compose plugin is not available"
+        exit 1
+    fi
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        print_error "Compose file not found: $COMPOSE_FILE"
+        exit 1
+    fi
+}
+
+ensure_nginx_up() {
+    print_status "Ensuring nginx service is up..."
+    docker compose -f "$COMPOSE_FILE" up -d nginx
+}
+
+nginx_exec() {
+    docker compose -f "$COMPOSE_FILE" exec -T nginx sh -c "$1"
+}
+
+write_nginx_config_inside() {
+    # $1 = config content
+    local content="$1"
+    printf "%s" "$content" | docker compose -f "$COMPOSE_FILE" exec -T nginx sh -c 'cat > /etc/nginx/conf.d/default.conf'
+}
+
+reload_nginx() {
+    nginx_exec "nginx -t" || {
+        print_error "nginx configuration test failed"
+        exit 1
+    }
+    nginx_exec "nginx -s reload || kill -HUP $(cat /var/run/nginx.pid) || true"
 }
 
 # Function to handle rate limiting
@@ -82,7 +157,7 @@ handle_rate_limiting() {
             print_warning "This requires manual intervention."
             print_status "Steps:"
             echo "1. Stop nginx: docker compose -f $COMPOSE_FILE stop nginx"
-            echo "2. Run certbot manually: docker compose -f $COMPOSE_FILE run --rm nginx certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos --email $EMAIL_ADDRESS --domains $DOMAIN,www.$DOMAIN"
+            echo "2. Run certbot manually: docker compose -f $COMPOSE_FILE run --rm nginx certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos --email $EMAIL_ADDRESS --domains $DOMAIN"
             echo "3. Start nginx: docker compose -f $COMPOSE_FILE up -d nginx"
             exit 0
             ;;
@@ -99,95 +174,82 @@ handle_rate_limiting() {
     esac
 }
 
-# Function to create nginx configuration
-create_nginx_config() {
+# Function to produce nginx configuration text
+render_nginx_config() {
     local config_type="$1"
-    
     if [ "$config_type" = "temp" ]; then
-        # Temporary HTTP-only configuration for certificate generation
-        cat > nginx.conf << EOF
+        cat << EOF
 # Temporary HTTP-only configuration for certificate generation
 server {
     listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-    
-    # Handle ACME challenge for Let's Encrypt
+    server_name ${DOMAIN};
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-    
-    # Proxy to Next.js App
+
     location / {
-        proxy_pass http://app:3000;
+        proxy_pass http://app:${PORT};
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Forwarded-Host \$host;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_cache_bypass $http_upgrade;
         proxy_read_timeout 86400;
     }
 }
 EOF
     else
-        # Full configuration with HTTPS
-        cat > nginx.conf << EOF
-# HTTP server - redirect to HTTPS
+        cat << EOF
+# HTTP server - redirect to HTTPS and serve ACME
 server {
     listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-    
-    # Handle ACME challenge for Let's Encrypt
+    server_name ${DOMAIN};
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-    
-    # Redirect all HTTP requests to HTTPS
+
     location / {
-        return 301 https://\$server_name\$request_uri;
+        return 301 https://$server_name$request_uri;
     }
 }
 
-# HTTPS server
 server {
     listen 443 ssl;
-    server_name $DOMAIN www.$DOMAIN;
-    
-    # SSL configuration
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-    
-    # SSL security settings
+    server_name ${DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
-    # Security headers
+
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options DENY always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
-    
-    # Proxy to Next.js App
+
     location / {
-        proxy_pass http://app:3000;
+        proxy_pass http://app:${PORT};
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Forwarded-Host \$host;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_cache_bypass $http_upgrade;
         proxy_read_timeout 86400;
     }
-
 }
 EOF
     fi
@@ -197,222 +259,103 @@ EOF
 generate_ssl_certificate() {
     local email="$1"
     local staging="$2"
-    
+
     print_status "Generating SSL certificate using certbot..."
-    
-    local certbot_cmd="certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos --email $email --domains $DOMAIN,www.$DOMAIN"
-    
-    if [ "$staging" = "true" ]; then
-        certbot_cmd="$certbot_cmd --staging"
+
+    local certbot_cmd="certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos --email ${email} --domains ${DOMAIN} --rsa-key-size 4096 --preferred-challenges http"
+
+    if [ "${staging}" = "true" ]; then
+        certbot_cmd="${certbot_cmd} --staging"
         print_warning "Using staging environment (test certificates)"
     fi
-    
-    docker compose -f "$COMPOSE_FILE" exec nginx sh -c "
-        # Install certbot if not already installed
-        if ! command -v certbot >/dev/null 2>&1; then
-            apk add --no-cache certbot certbot-nginx openssl
-        fi
-        
-        # Create required directories
-        mkdir -p /var/www/certbot
-        
-        # Generate certificate with proper error handling
-        $certbot_cmd || {
-            echo 'Certificate generation failed. Checking for rate limiting...'
-            certbot certificates
-            exit 1
-        }
-    "
+
+    nginx_exec "apk add --no-cache certbot openssl >/dev/null 2>&1 || true"
+    nginx_exec "mkdir -p /var/www/certbot"
+
+    # Run certbot
+    if ! nginx_exec "${certbot_cmd}"; then
+        print_error "Certificate generation failed."
+        exit 1
+    fi
 }
 
 # Main script execution
-print_status "🔒 SSL and Domain Setup Script"
+print_status "🔒 SSL Setup Script"
 echo ""
 
-# Pull latest changes from git
-print_status "Pulling latest changes from git..."
-git pull
-
-# Check if app is running
-print_status "Checking if app is running..."
-SERVER_IP="188.121.117.251"
-if ! curl -f http://$SERVER_IP:3000 > /dev/null 2>&1; then
-    print_error "App is not accessible on $SERVER_IP:3000!"
-    print_error "Please ensure your app is running and accessible before setting up SSL"
-    exit 1
-fi
-
-print_status "App is running successfully on $SERVER_IP:3000!"
-
-# Check if app is accessible (redundant check, but keeping for clarity)
-print_status "Testing app accessibility..."
-if ! curl -f http://$SERVER_IP:3000 > /dev/null 2>&1; then
-    print_error "App is not accessible on $SERVER_IP:3000!"
-    print_error "Please ensure your app is running and accessible before setting up SSL"
-    exit 1
-fi
-
-print_status "App is accessible on $SERVER_IP:3000!"
-
-# Check required files for SSL setup
-print_status "Checking SSL setup files..."
-if [ ! -f "$COMPOSE_FILE" ]; then
-    print_error "$COMPOSE_FILE not found!"
-    exit 1
-fi
-
-print_status "All SSL setup files found!"
-
-# Set default email address
-EMAIL_ADDRESS="admin@$DOMAIN"
-STAGING_MODE=false
-
-# Check for existing rate limiting issues
-print_status "Checking for existing rate limiting issues..."
-RATE_LIMIT_ERROR=$(docker compose -f "$COMPOSE_FILE" logs nginx --tail=50 2>&1 | grep -i "rate limit\|too many failed authorizations" || true)
-
-if [ -n "$RATE_LIMIT_ERROR" ]; then
-    handle_rate_limiting "$RATE_LIMIT_ERROR"
-fi
-
-# Stop nginx if running (but keep app running)
-print_status "Stopping nginx container if running..."
-docker compose -f "$COMPOSE_FILE" stop nginx 2>/dev/null || true
-
-# Clean up existing SSL certificates and volumes to avoid rate limiting issues
-print_status "Cleaning up existing SSL certificates and volumes..."
-docker compose -f "$COMPOSE_FILE" down nginx 2>/dev/null || true
-docker volume rm prostore_ssl_certs 2>/dev/null || true
-docker volume rm prostore_certbot_www 2>/dev/null || true
-
-# Create temporary nginx configuration for certificate generation
-print_status "Creating temporary nginx configuration for certificate generation..."
-create_nginx_config "temp"
-
-# Start nginx with temporary configuration
-print_status "Starting nginx with temporary configuration for certificate generation..."
-docker compose -f "$COMPOSE_FILE" up -d nginx
-
-# Wait a moment for nginx to start
-sleep 5
-
-# Restart nginx to ensure it loads the new configuration
-print_status "Restarting nginx to load temporary configuration..."
-docker compose -f "$COMPOSE_FILE" restart nginx
-
-# Wait for nginx to be ready
-print_status "Waiting for nginx to be ready..."
-attempts=0
-max_attempts=30
-while [ $attempts -lt $max_attempts ]; do
-    if curl -f http://$SERVER_IP:80 > /dev/null 2>&1; then
-        print_status "Nginx is ready!"
-        break
-    fi
-    echo "Waiting for nginx... (attempt $((attempts + 1))/$max_attempts)"
-    sleep 5
-    attempts=$((attempts + 1))
+# Parse flags
+while [[ ${1:-} =~ ^- ]]; do
+    case "$1" in
+        --domain)
+            DOMAIN="$2"; shift 2;;
+        --email)
+            EMAIL_ADDRESS="$2"; shift 2;;
+        --compose-file)
+            COMPOSE_FILE="$2"; shift 2;;
+        --port)
+            PORT="$2"; shift 2;;
+        --staging)
+            STAGING_MODE="true"; shift 1;;
+        --no-ssl)
+            SSL=false; shift 1;;
+        --help|-h)
+            usage; exit 0;;
+        *)
+            print_error "Unknown option: $1"; usage; exit 1;;
+    esac
 done
 
-if [ $attempts -eq $max_attempts ]; then
-    print_error "Nginx failed to start within expected time!"
-    print_status "Checking nginx logs..."
-    docker compose -f "$COMPOSE_FILE" logs nginx --tail=20
-    exit 1
-fi
+# Validate inputs
+ensure_compose
 
-# Wait a moment for nginx to fully stabilize
-print_status "Waiting for nginx to stabilize..."
-sleep 10
-
-# Check if nginx is serving HTTP properly
-print_status "Testing HTTP nginx access..."
-if curl -f http://$SERVER_IP:80 > /dev/null 2>&1; then
-    print_status "Nginx HTTP is working properly!"
-else
-    print_error "Nginx HTTP is not accessible!"
-    docker compose -f "$COMPOSE_FILE" logs nginx --tail=10
-    exit 1
-fi
-
-# Generate SSL certificate
-generate_ssl_certificate "$EMAIL_ADDRESS" "$STAGING_MODE"
-
-# Check if certificate was generated successfully
-if docker compose -f "$COMPOSE_FILE" exec nginx test -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem 2>/dev/null; then
-    print_status "SSL certificate generated successfully!"
-else
-    print_error "SSL certificate generation failed!"
-    print_status "Checking certbot logs..."
-    docker compose -f "$COMPOSE_FILE" logs nginx --tail=20
-    
-    # Check for rate limiting
-    RATE_LIMIT_ERROR=$(docker compose -f "$COMPOSE_FILE" logs nginx --tail=20 2>&1 | grep -i "rate limit\|too many failed authorizations" || true)
-    if [ -n "$RATE_LIMIT_ERROR" ]; then
-        handle_rate_limiting "$RATE_LIMIT_ERROR"
+if [ "$SSL" = "true" ]; then
+    if [ -z "$DOMAIN" ]; then
+        print_error "--domain is required (Let's Encrypt cannot issue IP certificates)"
+        usage
+        exit 1
     fi
-    
-    print_error "Certificate generation failed for unknown reason."
-    print_status "You can try again later with: ./docker-ssl-domain.sh"
-    exit 1
-fi
-
-# Create full nginx configuration with HTTPS
-print_status "Creating full nginx configuration with HTTPS..."
-create_nginx_config "full"
-
-# Restart nginx with HTTPS configuration
-print_status "Restarting nginx with HTTPS configuration..."
-docker compose -f "$COMPOSE_FILE" restart nginx
-
-# Wait for nginx to restart with HTTPS
-print_status "Waiting for nginx to restart with HTTPS..."
-attempts=0
-max_attempts=30
-while [ $attempts -lt $max_attempts ]; do
-    if curl -f -k https://$SERVER_IP:443 > /dev/null 2>&1; then
-        print_status "HTTPS is working!"
-        break
+    if domain_is_ip "$DOMAIN"; then
+        print_error "DOMAIN appears to be an IP. Use a real domain with DNS A/AAAA to this server."
+        exit 1
     fi
-    echo "Waiting for HTTPS... (attempt $((attempts + 1))/$max_attempts)"
-    sleep 5
-    attempts=$((attempts + 1))
-done
+    if [ -z "$EMAIL_ADDRESS" ]; then
+        print_error "--email is required"
+        usage
+        exit 1
+    fi
+fi
 
-# Test HTTPS access
-print_status "Testing HTTPS access..."
-if curl -f -k https://$SERVER_IP:443 > /dev/null 2>&1; then
-    print_status "HTTPS is working properly!"
+# Check if app is reachable externally (best-effort)
+print_status "Checking if app is reachable at http://$SERVER_IP:$PORT (best-effort)..."
+if ! curl -fsS --max-time 5 http://$SERVER_IP:$PORT > /dev/null 2>&1; then
+    print_warning "App not reachable via $SERVER_IP:$PORT from this host. Proceeding anyway since ACME uses port 80 on nginx."
 else
-    print_warning "HTTPS may still be initializing..."
+    print_status "App responded on $SERVER_IP:$PORT"
 fi
 
-# Success message
-print_status "🎉 SSL setup completed!"
-echo ""
-echo "🌐 Your website is now accessible at:"
-echo "   Direct IP: http://$SERVER_IP:3000"
-echo ""
-echo "🔧 Useful commands:"
-echo "   Check nginx status: docker compose -f $COMPOSE_FILE ps nginx"
-echo "   View nginx logs: docker compose -f $COMPOSE_FILE logs nginx -f"
-echo "   Check SSL certificate: docker compose -f $COMPOSE_FILE exec nginx ls -la /etc/letsencrypt/live/$DOMAIN/"
-echo "   Restart nginx: docker compose -f $COMPOSE_FILE restart nginx"
-echo "   Renew certificates: docker compose -f $COMPOSE_FILE exec nginx certbot renew"
-echo ""
-echo "🔒 SSL Certificate Status:"
-if docker compose -f "$COMPOSE_FILE" exec nginx test -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem 2>/dev/null; then
-    print_status "SSL certificate is properly configured!"
-    print_status "Certificate expiry: $(docker compose -f "$COMPOSE_FILE" exec nginx certbot certificates | grep -A 2 "$DOMAIN" | grep "VALID" || echo "Check manually")"
+# SSL setup
+if [ "$SSL" = "true" ]; then
+    print_status "Setting up SSL for $DOMAIN"
+
+    ensure_nginx_up
+
+    # Apply temporary HTTP-only config
+    print_status "Applying temporary HTTP config for ACME..."
+    temp_cfg="$(render_nginx_config temp)"
+    write_nginx_config_inside "$temp_cfg"
+    reload_nginx
+
+    # Issue certificate
+    generate_ssl_certificate "$EMAIL_ADDRESS" "$STAGING_MODE"
+
+    # Apply full HTTPS config
+    print_status "Applying full HTTPS nginx config..."
+    full_cfg="$(render_nginx_config full)"
+    write_nginx_config_inside "$full_cfg"
+    reload_nginx
+
+    print_status "SSL setup completed!"
 else
-    print_warning "SSL certificate setup may still be in progress..."
-    print_status "Check nginx logs for more details"
+    print_warning "SSL setup skipped."
+    exit 0
 fi
-
-if [ "$STAGING_MODE" = "true" ]; then
-    print_warning "⚠️  STAGING MODE: This certificate is for testing only and will not be trusted by browsers!"
-    print_status "To get a production certificate, run this script again without staging mode."
-fi
-
-echo ""
-print_status "Domain and SSL setup completed!"
